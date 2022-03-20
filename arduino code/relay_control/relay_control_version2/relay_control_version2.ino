@@ -7,7 +7,7 @@
 
 void writeString(int address, String data);
 String readString(int address);
-
+String payload;
 
 
 
@@ -16,6 +16,7 @@ int gpio1_pin = 14; //  D5 of nodemcu
 int gpio2_pin = 12;// D6 of nodemcu
 int gpio3_pin = 13; // D7 of nodemcu
 int config_pin = 15; // D8 of nodemcu
+int status_led=10;//sd3 of nodemcu
 
 
 String network="";
@@ -201,6 +202,8 @@ void setup() {
   pinMode(gpio2_pin,OUTPUT);
   pinMode(gpio3_pin,OUTPUT);
   pinMode(config_pin,INPUT);
+  pinMode(status_led,OUTPUT);
+  digitalWrite(status_led,LOW);
   network="internet";
   
   
@@ -210,11 +213,6 @@ void setup() {
 
 
 void loop() {
-  if(digitalRead(config_pin)==HIGH)
-  {
-      configuration();
-      network="local";
-  }
   if(network=="local")
       server.handleClient();
   if(network=="internet")
@@ -223,7 +221,38 @@ void loop() {
       server_conection();
     server_get_data();
   }
-      
+   for(int i=0;i<payload.length();i++)
+        {
+          if(i==0)
+          {
+            if(payload[i]=='1')
+              digitalWrite(gpio0_pin,HIGH);
+            if(payload[i]=='0')
+              digitalWrite(gpio0_pin,LOW);
+          }
+          if(i==1)
+          {
+            if(payload[i]=='1')
+              digitalWrite(gpio1_pin,HIGH);
+            if(payload[i]=='0')
+              digitalWrite(gpio1_pin,LOW);
+          }
+          if(i==2)
+          {
+            if(payload[i]=='1')
+              digitalWrite(gpio2_pin,HIGH);
+            if(payload[i]=='0')
+              digitalWrite(gpio2_pin,LOW);
+          }
+          if(i==3)
+          {
+            if(payload[i]=='1')
+              digitalWrite(gpio3_pin,HIGH);
+            if(payload[i]=='0')
+              digitalWrite(gpio3_pin,LOW);
+          }
+          
+        }   
   
 }
 
@@ -313,13 +342,36 @@ void configuration()
 
 void server_conection()
 {
+  Serial.println("wait for config");
+  int p=0;
+  while(p<10)
+  {
+  digitalWrite(status_led,HIGH);
+  delay(250);
+  digitalWrite(status_led,LOW);
+  delay(250);
+  p++;
+  }
+
+  if(digitalRead(config_pin)==LOW)
   WiFi.begin(readString(100), readString(125));
   Serial.println("Connecting");
-  while(WiFi.status() != WL_CONNECTED) {
+  while(WiFi.status() != WL_CONNECTED and network!="local") {
+    if(digitalRead(config_pin)==HIGH)
+  {
+     configuration();
+      network="local";
+      digitalWrite(status_led,LOW);
+      
+  }
     delay(500);
     Serial.print(".");
     
   }
+  if(WiFi.status() == WL_CONNECTED)
+  digitalWrite(status_led,HIGH); 
+  else
+  digitalWrite(status_led,LOW); 
   Serial.println("");
   Serial.print("Connected to WiFi network with IP Address: ");
   Serial.println(WiFi.localIP());
@@ -346,7 +398,7 @@ void server_get_data()
       if (httpResponseCode) {
         Serial.print("HTTP Response code: ");
         Serial.println(httpResponseCode);
-        String payload = http.getString();
+        payload = http.getString();
         Serial.println(payload);
       }
       else {
